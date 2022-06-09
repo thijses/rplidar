@@ -1,0 +1,63 @@
+#######################################
+# Syntax Coloring Map For thijs_rplidar
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+RPlidar	KEYWORD1
+lidarCMD	KEYWORD1
+lidarRespDescr	KEYWORD1
+lidarStandardData	KEYWORD1
+lidarExpressDataLegacy	KEYWORD1
+lidarExpressDataExtended	KEYWORD1
+lidarExpressDataDense	KEYWORD1
+lidarGetInfoResponse	KEYWORD1
+lidarGetHealthResponse	KEYWORD1
+lidarGetSamplerateResponse	KEYWORD1
+lidarGetLidarConfResponse	KEYWORD1
+# lidarMotorHandler	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+init	KEYWORD2
+startScan	KEYWORD2
+getInfo	KEYWORD2
+getHealth	KEYWORD2
+getSamplerate	KEYWORD2
+printLidarInfo	KEYWORD2
+printLidarHealth	KEYWORD2
+printLidarSamplerate	KEYWORD2
+printLidarConfig	KEYWORD2
+getLidarConfScanModeCount	KEYWORD2
+getLidarConfScanModeTypical	KEYWORD2
+getLidarConfScanModeSampletime	KEYWORD2
+getLidarConfScanModeMaxDist	KEYWORD2
+getLidarConfScanModeAnsType	KEYWORD2
+getLidarConfScanModeName	KEYWORD2
+startStandardScan	KEYWORD2
+startExpressScan	KEYWORD2
+handleData	KEYWORD2
+stopScan	KEYWORD2
+resetLidar	KEYWORD2
+connectionCheck	KEYWORD2
+rawAnglePerMillisecond	KEYWORD2
+RPM		KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+lidarSerial		LITERAL1
+postParseCallback	LITERAL1
+rotationCount	LITERAL1
+packetCount	LITERAL1
+
+# responseLength	LITERAL1
+# sendMode	LITERAL1
+# dataType	LITERAL1
+# startAngle	LITERAL1
+
