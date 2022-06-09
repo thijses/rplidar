@@ -1,5 +1,6 @@
 # an arduino (ESP32) library for the rplidar
 an (Arduino) library for the RPlidar (A1M8 specifically) and the ESP32
+
 handles all 4 communication protocols layed out by the Slamtec protocol documentation:
 - standard scan (2kHz)
 - express legacy (4kHz)
