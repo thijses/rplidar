@@ -168,7 +168,7 @@ const uint8_t EXPRESS_SCAN_WORKING_MODE_BOOST = 2; //see what comes up when you 
 const uint8_t EXPRESS_SCAN_WORKING_MODE_SENSITIVITY = 3; //these values appear to be indices of scan modes
 const uint8_t EXPRESS_SCAN_WORKING_MODE_STABILITY = 4; //the documentation regarding these is somewhat lacking
 
-//bit masks for isolating various tangled data in packets
+//bit masks for isolating various tangled data in packets (not used in all cases, so do check the data structs manually if you change anything here)
 const uint8_t RESP_DESCR_SENDMODE_BITS = 0b11000000; //the responseLength is 30 bits long, the last 2 bits indicate sendMode
 const uint8_t STANDARD_DATA_ROT_START_BITS = 0b00000011; //the lowest 2 bits of the first byte is the rotation_start flag(s)
 const uint8_t STANDARD_DATA_CHECK_BIT = 0b00000001; //the LSBit of the second byte is a check but, should always be 1
@@ -235,7 +235,7 @@ struct lidarStandardData : public byteArrayStruct<5> {
   inline uint8_t quality() {return((_data[0]&(~STANDARD_DATA_ROT_START_BITS))>>2);} // (6bit number) quality of measurement ("reflected laser pulse strength")
   inline uint8_t rotStartFlag() {return(_data[0]&STANDARD_DATA_ROT_START_BITS);} // 1 when new rotation starts, 2 otherwise (if it's 0 or 3 then something is very wrong!)
   inline bool checkBit() {return(_data[1]&STANDARD_DATA_CHECK_BIT);} //should always be 1
-  inline uint16_t angle() {uint16_t angle=(_data[2]<<8); return(angle|(_data[1]&(~STANDARD_DATA_CHECK_BIT)));} //(15bit number) divide by 64 (bitshift by 6 (or multiply by 0.015625) if you want to be quick) to get degrees
+  inline uint16_t angle() {uint16_t angle=(_data[2]<<7); return(angle|(_data[1]>>1));} //(15bit number) divide by 64 (bitshift by 6 (or multiply by 0.015625) if you want to be quick) to get degrees
   inline uint16_t& dist() {return((uint16_t&)_data[3]);} // divide by 4 (bitshift by 2 (or multiply by 0.25) if you want to be quick) to get millimeters
 };
 
@@ -819,13 +819,13 @@ public:
     } else { return(false); }
   }
 
-  uint32_t rawAnglePerMillisecond() {
+  uint32_t rawAnglePerMillisecond() { // i strongly recommend implementing your own RPM measurement system if you want accurate data, this is really more of a rough indication
     if(rotationSpeedDt) { // avoid divide by 0
       uint32_t angleDiff = expressDataAngleDelta * 1000;
       return(angleDiff / rotationSpeedDt);
     } else { return(0); }
   }
-  float RPM() {
+  float RPM() { // i strongly recommend implementing your own RPM measurement system if you want accurate data, this is really more of a rough indication
     if(rotationSpeedDt) { // avoid divide by 0
       float RPM = expressDataAngleDelta; // angle_q6
       RPM /= rotationSpeedDt; // angle_q6 per micros
