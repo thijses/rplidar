@@ -624,7 +624,7 @@ public:
     return(true);
   }
   
-  int8_t handleData(bool includeInvalidMeasurements=true, bool waitForChecksum=false) { // returns how many measurements were sent to the postParseCallback()
+  int8_t handleData(bool includeInvalidMeasurements=true, bool waitForChecksum=false, bool doExtendAngleMath=false) { // returns how many measurements were sent to the postParseCallback()
     if(scanResponseFormat == 0) { Serial.println("handleData() failed, scanResponseFormat == 0!"); return(-1); }
     //if(postParseCallback == NULL) { Serial.println("no postParseCallback function set, the data will go nowhere");
     uint8_t measurementsHandled = 0;
@@ -731,31 +731,34 @@ public:
           
           for(uint8_t j=0; j<3; j++) {
             if(includeInvalidMeasurements ? true : (dist[j] > 0)) { // a little timesaver (avoid calculating the angle if you're not gonna use it anyway)
-              // calculate angle (taken from the SDK and altered slightly)
-              // NOTE: this math shifts the angle based on the distance (for some reason), and may therefore result in non-chronological angles (angles dropping below the last one for no reason)
-              int32_t offsetAngleMean_q16;
-              if(dist[j] >= 50) { // note: in the SDK they use (50*4), but they also use dist_q2, so (50*4)>>2 = 50*4/4 = 50
-                int32_t k2 = (int32_t)98361 / ((int32_t)dist[j] << 2); // presumably, any odd value divided by any dist_Q2 would be equivalent to (the value's nearest multiple of 4) divided by dist_q2
-                static const float extraThingy = radians((1<<19)); // from SDK to mine: (8 * 3.1415926535 * (1 << 16) / 180) = radians(8*(1<<16) = radians(1<<19)
-                offsetAngleMean_q16 = degrees(extraThingy - (k2 << 6) - (k2*k2*k2)/98304); // i'm converting to degrees here (instead of the SDK, where they do it a little later)
-                /* i've done some napkin-math, and the largest numbers to come out of these formulas are: 
-                 *  k2 = 98361/(50<<2)=491;
-                 *  offset_q16 = degrees(9150 - (491*64) - (491^3)/98304) = degrees(9150 - 31424 - 1204) = degrees(-23478) = -1345190
-                 *  offset_q6 = -1314
-                 *  offset_degrees = -20.5 degrees
-                 * and on the other side of the spectrum:
-                 *  k2 = 98361 / (25000<<2) = 0  // max range for some lidar models is 25m in scan modes which (on the A1M8 at least) use this type of data format
-                 *  offset_q16 = degrees(radians(1<<19)) = 1<<19 = 524288
-                 *  offset_q6 = 512
-                 *  offset_degrees = +8 degrees             */
-              } else {
-                static const float extraThingy = 7.5*(1<<16); // (= 491520) 7.5 degrees
-                offsetAngleMean_q16 = extraThingy; // in the SDK they convert this to radians, only to convert back to degrees right after... no thank you
-              }
               int32_t angle_q6 = _incompleteExpressExtendPacket.startAngle() + (expressDataAngleDelta*((i*3)+j))/96; // angle = start + (speed*dt)/40 + extraDelta
-              //angle_q6 = ((angle_q6<<10) - offsetAngleMean_q16)>>10; // add offset
-              if(angle_q6 < 0) { angle_q6 += (360<<6); } // handle single negative rollover
-              else if(angle_q6 >= (360<<6)) { angle_q6 -= (360<<6); } // handle single positive rollover
+              if(doExtendAngleMath) {
+                // calculate angle (taken from the SDK and altered slightly)
+                // NOTE: this math shifts the angle based on the distance (for some reason), and may therefore result in non-chronological angles (angles dropping below the last one for no reason)
+                int32_t offsetAngleMean_q16;
+                if(dist[j] >= 50) { // note: in the SDK they use (50*4), but they also use dist_q2, so (50*4)>>2 = 50*4/4 = 50
+                  int32_t k2 = (int32_t)98361 / ((int32_t)dist[j] << 2); // presumably, any odd value divided by any dist_Q2 would be equivalent to (the value's nearest multiple of 4) divided by dist_q2
+                  static const float extraThingy = radians((1<<19)); // from SDK to mine: (8 * 3.1415926535 * (1 << 16) / 180) = radians(8*(1<<16) = radians(1<<19)
+                  offsetAngleMean_q16 = degrees(extraThingy - (k2 << 6) - (k2*k2*k2)/98304); // i'm converting to degrees here (instead of the SDK, where they do it a little later)
+                  /* i've done some napkin-math, and the largest numbers to come out of these formulas are: 
+                  *  k2 = 98361/(50<<2)=491;
+                  *  offset_q16 = degrees(9150 - (491*64) - (491^3)/98304) = degrees(9150 - 31424 - 1204) = degrees(-23478) = -1345190
+                  *  offset_q6 = -1314
+                  *  offset_degrees = -20.5 degrees
+                  * and on the other side of the spectrum:
+                  *  k2 = 98361 / (25000<<2) = 0  // max range for some lidar models is 25m in scan modes which (on the A1M8 at least) use this type of data format
+                  *  offset_q16 = degrees(radians(1<<19)) = 1<<19 = 524288
+                  *  offset_q6 = 512
+                  *  offset_degrees = +8 degrees
+                  * a simplified approximation is: offset_degrees = 8deg - 1376 * (1.0/dist + 96/(dist^3))             */
+                } else {
+                  static const float extraThingy = 7.5*(1<<16); // (= 491520) 7.5 degrees
+                  offsetAngleMean_q16 = extraThingy; // in the SDK they convert this to radians, only to convert back to degrees right after... no thank you
+                }
+                angle_q6 = ((angle_q6<<10) - offsetAngleMean_q16)>>10; // add offset
+                if(angle_q6 < 0) { angle_q6 += (360<<6); } // handle single negative rollover
+              }
+              if(angle_q6 >= (360<<6)) { angle_q6 -= (360<<6); } // handle single positive rollover
               
               bool startFlag = _incompleteExpressExtendPacket.rotStartFlag() && (((i*3)+j) == 0);
               if(postParseCallback) { postParseCallback(this, dist[j], angle_q6, startFlag, -1); }
