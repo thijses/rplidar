@@ -12,7 +12,7 @@ I couldn't find any libraries for RPlidars that actually support all data types.
 I bought an A1M8 for a university self-driving racing project, and i'm using it to detect cones (for SLAM and stuff).
 
 still todo:
+ - better documentation/examples/comments
  - constant name translation functions (going backwards from 0x84 to "RESP_DESCR_SENDMODE_DATATYPE_EXPRESS_EXTEND")
- - multicore example (use the ESP32's second core to process the data / show it on an SPI-display/oscilloscope)
  - motor PID?
  - make debug printing optional????? (nah)
