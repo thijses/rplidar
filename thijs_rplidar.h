@@ -70,6 +70,8 @@ scan mode: 4
 
 #include "Arduino.h"
 
+//#define lidarDebugSerial Serial
+
 #if !defined(ESP32)
   #error("thijs_rplidar.h was designed for the ESP32. It could probably also run on other MCUs, but you need to check for yourself")
 #endif
@@ -373,7 +375,7 @@ public:
 //private: // oh whatever, i trust the users of the library enough
   void _sendCommand(lidarCMD& commandToSend) {
     lidarSerial.write(commandToSend.send(), commandToSend.sendSize());
-  //  commandToSend.send(); for(uint8_t i=0;i<commandToSend.sendSize();i++){Serial.print(commandToSend._data[i], HEX); Serial.print(' ');} Serial.println();
+  //  commandToSend.send(); for(uint8_t i=0;i<commandToSend.sendSize();i++){lidarDebugSerial.print("rplidar: "); lidarDebugSerial.print(commandToSend._data[i], HEX); lidarDebugSerial.print(' ');} lidarDebugSerial.println();
   }
   
   size_t _recvRespDescr(lidarRespDescr& resp, uint32_t startFlagTimeout=5000) { // read serial data untill both RESP_DESCR_START_FLAGS are received. startFlagTimeout is in micros, returns the number of bytes read
@@ -387,7 +389,9 @@ public:
           syncProgress++;
     } } }
     if(syncProgress < sizeof(RESP_DESCR_START_FLAGS)) {
-      Serial.print("_recvRespDescr() "); Serial.print(syncProgress); Serial.print(" < "); Serial.println(sizeof(RESP_DESCR_START_FLAGS));
+      #ifdef lidarDebugSerial
+        lidarDebugSerial.print("rplidar: _recvRespDescr() "); lidarDebugSerial.print(syncProgress); lidarDebugSerial.print(" < "); lidarDebugSerial.println(sizeof(RESP_DESCR_START_FLAGS));
+      #endif
       return(0); //sync bytes were not received (within startFlagTimeout)
     } // (else) //sync bytes were all received, time to read the message
     return(lidarSerial.readBytes(&resp, sizeof(resp)));
@@ -403,7 +407,7 @@ public:
     if(bytesRead < sizeof(resp)) { // if something went wrong with the reading
       //memset(&resp, 0, sizeof(resp)); // set all zeros
       resp.dataType() = RESP_TYPE_INVALID;
-      //Serial.print("_sendRequestNoPayload() bytesRead < sizeof(resp)"); Serial.print(bytesRead); Serial.print(" < "); Serial.println(sizeof(resp));
+      //lidarDebugSerial.print("rplidar: _sendRequestNoPayload() bytesRead < sizeof(resp)"); lidarDebugSerial.print(bytesRead); lidarDebugSerial.print(" < "); lidarDebugSerial.println(sizeof(resp));
     }
     return(resp);
   }
@@ -417,13 +421,17 @@ public:
       size_t bytesRead = lidarSerial.readBytes(&returnVal, sizeof(returnVal));
       if(bytesRead < sizeof(returnVal)) {
         //memset(&returnVal, 0xFF, sizeof(returnVal)); // do something to indicate faillure
-        /*Serial.print(funcName);*/ Serial.print("_getSomethingSimple() bytesRead < sizeof(returnVal) "); Serial.print(bytesRead); Serial.print(" < "); Serial.println(sizeof(returnVal));
+        #ifdef lidarDebugSerial
+          /*lidarDebugSerial.print(funcName);*/ lidarDebugSerial.print("rplidar: _getSomethingSimple() bytesRead < sizeof(returnVal) "); lidarDebugSerial.print(bytesRead); lidarDebugSerial.print(" < "); lidarDebugSerial.println(sizeof(returnVal));
+        #endif
       }
     } else {
       //memset(&returnVal, 0xFF, sizeof(returnVal)); // do something to indicate faillure
-      /*Serial.print(funcName);*/ Serial.print("_getSomethingSimple() resp wrong! "); 
-      Serial.print(resp.dataType(), HEX); Serial.print(" != "); Serial.print(correct_resp_type_byte, HEX); Serial.print(" || ");
-      Serial.print(resp.responseLength()); Serial.print(" != "); Serial.println(sizeof(returnVal));
+      #ifdef lidarDebugSerial
+        /*lidarDebugSerial.print(funcName);*/ lidarDebugSerial.print("rplidar: _getSomethingSimple() resp wrong! "); 
+        lidarDebugSerial.print(resp.dataType(), HEX); lidarDebugSerial.print(" != "); lidarDebugSerial.print(correct_resp_type_byte, HEX); lidarDebugSerial.print(" || ");
+        lidarDebugSerial.print(resp.responseLength()); lidarDebugSerial.print(" != "); lidarDebugSerial.println(sizeof(returnVal));
+      #endif
     }
     return(returnVal);
   }
@@ -433,9 +441,11 @@ public:
     lidarRespDescr resp;
     size_t bytesRead = _recvRespDescr(resp);
     if((bytesRead < sizeof(resp)) || (resp.dataType() != RESP_TYPE_GET_LIDAR_CONF)) {
-      Serial.print("_recvLidarConfRespDesc() response issue: "); 
-      Serial.print(bytesRead); Serial.print(" < "); Serial.print(sizeof(resp)); Serial.print(" || ");
-      Serial.print(resp.dataType(), HEX); Serial.print(" != "); Serial.println(RESP_TYPE_GET_LIDAR_CONF, HEX);
+      #ifdef lidarDebugSerial
+        lidarDebugSerial.print("rplidar: _recvLidarConfRespDesc() response issue: "); 
+        lidarDebugSerial.print(bytesRead); lidarDebugSerial.print(" < "); lidarDebugSerial.print(sizeof(resp)); lidarDebugSerial.print(" || ");
+        lidarDebugSerial.print(resp.dataType(), HEX); lidarDebugSerial.print(" != "); lidarDebugSerial.println(RESP_TYPE_GET_LIDAR_CONF, HEX);
+      #endif
       return(0);
     } // else
     return(resp.responseLength());
@@ -446,8 +456,10 @@ public:
     lidarSerial.setTimeout(slowSerialTimout);
     size_t bytesRead = lidarSerial.readBytes(&lidarConfPayload, payloadSize);
     if(bytesRead < payloadSize) {
-      Serial.print("_recvLidarConfPayload() lidarConfPayload read issue: "); 
-      Serial.print(bytesRead); Serial.print(" < "); Serial.println(payloadSize);
+      #ifdef lidarDebugSerial
+        lidarDebugSerial.print("rplidar: _recvLidarConfPayload() lidarConfPayload read issue: "); 
+        lidarDebugSerial.print(bytesRead); lidarDebugSerial.print(" < "); lidarDebugSerial.println(payloadSize);
+      #endif
       lidarConfPayload.typeVal() = 0x00; //indicate that receiving failed
     } // else
     return(lidarConfPayload);
@@ -458,13 +470,17 @@ public:
     _sendCommand(lidarConfCMD);
     uint32_t currentRespLength = _recvLidarConfRespDesc();
     if(currentRespLength != (sizeof(uint32_t)+sizeof(returnType))) {
-      Serial.print("lidarConfCMD currentRespLength bad:"); Serial.println(currentRespLength);
+      #ifdef lidarDebugSerial
+        lidarDebugSerial.print("rplidar: lidarConfCMD currentRespLength bad:"); lidarDebugSerial.println(currentRespLength);
+      #endif
       return(0);
     } // else
     lidarGetLidarConfResponse lidarConfAttribute = _recvLidarConfPayload(sizeof(uint32_t)+sizeof(returnType));
     if(lidarConfAttribute.typeVal() != CONF_CMDbyte) {
-      Serial.print("_getLidarConfAttributeBoth() lidarConfAttribute read issue: ");
-      Serial.print(lidarConfAttribute.typeVal()); Serial.print(" != "); Serial.println(CONF_CMDbyte);
+      #ifdef lidarDebugSerial
+        lidarDebugSerial.print("rplidar: _getLidarConfAttributeBoth() lidarConfAttribute read issue: ");
+        lidarDebugSerial.print(lidarConfAttribute.typeVal()); lidarDebugSerial.print(" != "); lidarDebugSerial.println(CONF_CMDbyte);
+      #endif
       return(0);
     } // else
     return((returnType)lidarConfAttribute);
@@ -553,13 +569,17 @@ public:
     _sendCommand(lidarConfCMD);
     uint32_t currentRespLength = _recvLidarConfRespDesc();
     if((currentRespLength <= sizeof(uint32_t)) || (currentRespLength > 260)) {
-      Serial.print("lidarConfCMD currentRespLength bad:"); Serial.println(currentRespLength);
+      #ifdef lidarDebugSerial
+        lidarDebugSerial.print("rplidar: lidarConfCMD currentRespLength bad:"); lidarDebugSerial.println(currentRespLength);
+      #endif
       return(returnString);
     } // else
     lidarGetLidarConfResponse lidarConfAttribute = _recvLidarConfPayload(currentRespLength);
     if(lidarConfAttribute.typeVal() != GET_CONF_SCAN_MODE_NAME) {
-      Serial.print("_getLidarConfAttributeBoth() lidarConfAttribute read issue: ");
-      Serial.print(lidarConfAttribute.typeVal()); Serial.print(" != "); Serial.println(GET_CONF_SCAN_MODE_NAME);
+      #ifdef lidarDebugSerial
+        lidarDebugSerial.print("rplidar: _getLidarConfAttributeBoth() lidarConfAttribute read issue: ");
+        lidarDebugSerial.print(lidarConfAttribute.typeVal()); lidarDebugSerial.print(" != "); lidarDebugSerial.println(GET_CONF_SCAN_MODE_NAME);
+      #endif
       return(returnString);
     } // else
     // now remake string
@@ -586,7 +606,7 @@ public:
   }
 
   bool startStandardScan(bool force=false) {
-    //if(postParseCallback == NULL) { Serial.println("no postParseCallback function set, the data will go nowhere");
+    //if(postParseCallback == NULL) { lidarDebugSerial.println("rplidar: no postParseCallback function set, the data will go nowhere");
     _incompleteBytesRemaining = 0; // reset (and discard) partial packet data
     packetCount = 0; // reset packet counter
     lidarRespDescr resp = _sendRequestNoPayload(force ? CMD_FORCE_SCAN : CMD_SCAN);
@@ -596,7 +616,7 @@ public:
     return(success);
   }
   bool startExpressScan(uint8_t extendMode=EXPRESS_SCAN_WORKING_MODE_LEGACY) {
-    //if(postParseCallback == NULL) { Serial.println("no postParseCallback function set, the data will go nowhere");
+    //if(postParseCallback == NULL) { lidarDebugSerial.println("rplidar: no postParseCallback function set, the data will go nowhere");
     _incompleteBytesRemaining = 0; // reset (and discard) partial packet data
     packetCount = 0; // reset packet counter
     lidarCMD commandToSend(CMD_EXPRESS_SCAN, 5);
@@ -606,14 +626,15 @@ public:
     size_t bytesRead = _recvRespDescr(resp);
     if((bytesRead < sizeof(resp)) || (resp.sendMode() != RESP_DESCR_SENDMODE_MULTI_RESPONSE) ||     // if something went wrong with the reading
        ((resp.dataType() != ((extendMode != EXPRESS_SCAN_WORKING_MODE_LEGACY) ? RESP_TYPE_SCAN_EXPRESS_EXTEND : RESP_TYPE_SCAN_EXPRESS_LEGACY)) && (resp.dataType() != RESP_TYPE_SCAN_EXPRESS_DENSE)) )  { // or if the datatype is not what you expected
-      Serial.print("startExpressScan error: ");
-      Serial.print(bytesRead); Serial.print('<'); Serial.print(sizeof(resp)); Serial.print(" || "); 
-      Serial.print(resp.sendMode()); Serial.print("!="); Serial.print(RESP_DESCR_SENDMODE_MULTI_RESPONSE); Serial.print(" || ");
-      Serial.print(resp.dataType(),HEX); Serial.print("!="); 
-                                      if(extendMode != EXPRESS_SCAN_WORKING_MODE_LEGACY){ Serial.print(RESP_TYPE_SCAN_EXPRESS_EXTEND,HEX); }
-                                      else{Serial.print('(');Serial.print(RESP_TYPE_SCAN_EXPRESS_LEGACY,HEX);Serial.print("||");Serial.print(RESP_TYPE_SCAN_EXPRESS_DENSE,HEX);Serial.print(')');}
-                                      Serial.println();
-      
+      #ifdef lidarDebugSerial
+        lidarDebugSerial.print("rplidar: startExpressScan error: ");
+        lidarDebugSerial.print(bytesRead); lidarDebugSerial.print('<'); lidarDebugSerial.print(sizeof(resp)); lidarDebugSerial.print(" || "); 
+        lidarDebugSerial.print(resp.sendMode()); lidarDebugSerial.print("!="); lidarDebugSerial.print(RESP_DESCR_SENDMODE_MULTI_RESPONSE); lidarDebugSerial.print(" || ");
+        lidarDebugSerial.print(resp.dataType(),HEX); lidarDebugSerial.print("!="); 
+                                        if(extendMode != EXPRESS_SCAN_WORKING_MODE_LEGACY){ lidarDebugSerial.print(RESP_TYPE_SCAN_EXPRESS_EXTEND,HEX); }
+                                        else{lidarDebugSerial.print('(');lidarDebugSerial.print(RESP_TYPE_SCAN_EXPRESS_LEGACY,HEX);lidarDebugSerial.print("||");lidarDebugSerial.print(RESP_TYPE_SCAN_EXPRESS_DENSE,HEX);lidarDebugSerial.print(')');}
+                                        lidarDebugSerial.println();
+      #endif
       scanResponseFormat = 0; // save the fact that starting the scan failed
       return(false);
     } // else
@@ -625,8 +646,13 @@ public:
   }
   
   int8_t handleData(bool includeInvalidMeasurements=true, bool waitForChecksum=false, bool doExtendAngleMath=false) { // returns how many measurements were sent to the postParseCallback()
-    if(scanResponseFormat == 0) { Serial.println("handleData() failed, scanResponseFormat == 0!"); return(-1); }
-    //if(postParseCallback == NULL) { Serial.println("no postParseCallback function set, the data will go nowhere");
+    if(scanResponseFormat == 0) {
+      #ifdef lidarDebugSerial
+        lidarDebugSerial.println("rplidar: handleData() failed, scanResponseFormat == 0!"); 
+      #endif
+      return(-1);
+    }
+    //if(postParseCallback == NULL) { lidarDebugSerial.println("rplidar: no postParseCallback function set, the data will go nowhere");
     uint8_t measurementsHandled = 0;
     lidarSerial.setTimeout(fastSerialTimout);
 /////////////////////////////////////////////////////////////////////////////////////////////////////////standard///////////////////////////////////////////////////////////////////////////////////
@@ -642,7 +668,9 @@ public:
           if(_incompleteStandardPackets[i].rotStartFlag() == 1) { rotationCount++; }
           if((postParseCallback) && (includeInvalidMeasurements ? true : (dist > 0))) { postParseCallback(this, dist, _incompleteStandardPackets[i].angle(), (_incompleteStandardPackets[i].rotStartFlag() == 1), _incompleteStandardPackets[i].quality()); }
         } else {
-          Serial.print("handleData() standard scan check error: "); Serial.print(_incompleteStandardPackets[i].checkBit()); Serial.print(" or "); Serial.println(_incompleteStandardPackets[i].rotStartFlag()); return(-1);
+          #ifdef lidarDebugSerial
+            lidarDebugSerial.print("rplidar: handleData() standard scan check error: "); lidarDebugSerial.print(_incompleteStandardPackets[i].checkBit()); lidarDebugSerial.print(" or "); lidarDebugSerial.println(_incompleteStandardPackets[i].rotStartFlag()); return(-1);
+          #endif
           //if(motorHandlerPtr) { //stop motor }
         }
       }
@@ -661,7 +689,9 @@ public:
       if((_incompleteBytesRemaining == 0) || ((!waitForChecksum) && ((sizeof(_incompleteExpressLegacyPacket) - _incompleteBytesRemaining) > sizeof(_lidarExpressDataBase<4>)))) { //if the packet is complete or if you don't care about checking data (measurements start after 4byte preamble)
         if(_incompleteBytesRemaining == 0) { // if the whole packet is read
           if(_incompleteExpressLegacyPacket.calcChecksum() != _incompleteExpressLegacyPacket.checksum()) {
-            Serial.print("handleData() express legacy packet checksum error: "); Serial.print(_incompleteExpressLegacyPacket.calcChecksum()); Serial.print(" != "); Serial.println(_incompleteExpressLegacyPacket.checksum());  return(-1);
+            #ifdef lidarDebugSerial
+              lidarDebugSerial.print("rplidar: handleData() express legacy packet checksum error: "); lidarDebugSerial.print(_incompleteExpressLegacyPacket.calcChecksum()); lidarDebugSerial.print(" != "); lidarDebugSerial.println(_incompleteExpressLegacyPacket.checksum());  return(-1);
+            #endif
             //if(motorHandlerPtr) { //stop motor }
           }
           // updating expressDataAngleDelta doesnt require the whole packet, but i only want to do it once per packet. This delays the function, but since the samplerate is so high, the RPM should change very little between packets
@@ -693,7 +723,9 @@ public:
       if((_incompleteBytesRemaining == 0) || ((!waitForChecksum) && ((sizeof(_incompleteExpressExtendPacket) - _incompleteBytesRemaining) > sizeof(_lidarExpressDataBase<4>)))) { //if the packet is complete or if you don't care about checking data (measurements start after 4byte preamble)
         if(_incompleteBytesRemaining == 0) { // if the whole packet is read
           if(_incompleteExpressExtendPacket.calcChecksum() != _incompleteExpressExtendPacket.checksum()) {
-            Serial.print("handleData() express extend packet checksum error: "); Serial.print(_incompleteExpressExtendPacket.calcChecksum()); Serial.print(" != "); Serial.println(_incompleteExpressExtendPacket.checksum());  return(-1);
+            #ifdef lidarDebugSerial
+              lidarDebugSerial.print("rplidar: handleData() express extend packet checksum error: "); lidarDebugSerial.print(_incompleteExpressExtendPacket.calcChecksum()); lidarDebugSerial.print(" != "); lidarDebugSerial.println(_incompleteExpressExtendPacket.checksum());  return(-1);
+            #endif
             //if(motorHandlerPtr) { //stop motor }
           }
           // updating expressDataAngleDelta doesnt require the whole packet, but i only want to do it once per packet. This delays the function, but since the samplerate is so high, the RPM should change very little between packets
@@ -774,7 +806,9 @@ public:
       if((_incompleteBytesRemaining == 0) || ((!waitForChecksum) && ((sizeof(_incompleteExpressDensePacket) - _incompleteBytesRemaining) > sizeof(_lidarExpressDataBase<4>)))) { //if the packet is complete or if you don't care about checking data (measurements start after 4byte preamble)
         if(_incompleteBytesRemaining == 0) { // if the whole packet is read
           if(_incompleteExpressDensePacket.calcChecksum() != _incompleteExpressDensePacket.checksum()) {
-            Serial.print("handleData() express extend packet checksum error: "); Serial.print(_incompleteExpressDensePacket.calcChecksum()); Serial.print(" != "); Serial.println(_incompleteExpressDensePacket.checksum());  return(-1);
+            #ifdef lidarDebugSerial
+              lidarDebugSerial.print("rplidar: handleData() express extend packet checksum error: "); lidarDebugSerial.print(_incompleteExpressDensePacket.calcChecksum()); lidarDebugSerial.print(" != "); lidarDebugSerial.println(_incompleteExpressDensePacket.checksum());  return(-1);
+            #endif
             //if(motorHandlerPtr) { //stop motor }
           }
           // updating expressDataAngleDelta doesnt require the whole packet, but i only want to do it once per packet. This delays the function, but since the samplerate is so high, the RPM should change very little between packets
@@ -797,7 +831,11 @@ public:
           if((postParseCallback) && (includeInvalidMeasurements ? true : (dist > 0))) { postParseCallback(this, dist, angle_q6, startFlag, -1); }
         }
       }
-    } else { Serial.print("handleData() failed, scanResponseFormat unknown: ");Serial.println(scanResponseFormat,HEX); return(-1); /*if(motorHandlerPtr) { //stop motor }*/ }
+    } else {
+      #ifdef lidarDebugSerial
+        lidarDebugSerial.print("rplidar: handleData() failed, scanResponseFormat unknown: ");lidarDebugSerial.println(scanResponseFormat,HEX); 
+      #endif
+      return(-1); /*if(motorHandlerPtr) { //stop motor }*/ }
     return(measurementsHandled);
   }
 

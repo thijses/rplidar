@@ -1,4 +1,6 @@
 
+#define lidarDebugSerial Serial
+
 #include "thijs_rplidar.h"
 
 #define ILI9341displayAdafruit
