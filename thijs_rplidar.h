@@ -4,6 +4,8 @@ todo:
  - multicore example (use the ESP32's second core to process the data / show it on an SPI-display/oscilloscope)
  - motor PID?
  - make debug printing optional????? (nah)
+ - (2023): enums instead of loose constants? (just to help indicate what sort of data might be useful somewhere) (e.g. for RESP_TYPE_SCAN and similar)
+ - (2023): way more comments to explain things to my future self (because reading this back is giving me a headache)
 
 NOTES:
 if you're using the included serial adapter, the DTR pin is connected to the motor PWM control.
@@ -664,7 +666,7 @@ public:
       for(uint8_t i=whereToStartParse; i<whereToStopParse; i++) {
         if(_incompleteStandardPackets[i].checkBit() && ((_incompleteStandardPackets[i].rotStartFlag() != STANDARD_DATA_ROT_START_BITS) && (_incompleteStandardPackets[i].rotStartFlag() != 0))) {
           packetCount++;
-          uint16_t dist = _incompleteStandardPackets[i].dist() >> 2; // standard angle data is 16bits, but in 'q2' format. right shifting discards that 0.25mm resolution (but the lidar has a +- 1mm accuracy anyway, 1mm resolution is perfectly adequate
+          uint16_t dist = _incompleteStandardPackets[i].dist() >> 2; // standard distance data is 16bits, but in 'q2' format. right shifting discards that 0.25mm resolution (but the lidar has a +- 1mm accuracy anyway, 1mm resolution is perfectly adequate
           if(_incompleteStandardPackets[i].rotStartFlag() == 1) { rotationCount++; }
           if((postParseCallback) && (includeInvalidMeasurements ? true : (dist > 0))) { postParseCallback(this, dist, _incompleteStandardPackets[i].angle(), (_incompleteStandardPackets[i].rotStartFlag() == 1), _incompleteStandardPackets[i].quality()); }
         } else {
